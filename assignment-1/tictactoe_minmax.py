@@ -5,30 +5,19 @@ def check_winner(state):
     # check rows
     for i in range(3):
         if state[i][0] == state[i][1] == state[i][2] and state[i][0] != 0:
-            if state[i][0] == 1:
-                return 10
-            elif state[i][0] == -1:
-                return -10
-            
+            return state[i][0]
+
     # check columns
     for j in range(3):
         if state[0][j] == state[1][j] == state[2][j] and state[0][j] != 0:
-            if state[0][j] == 1:
-                return 10
-            elif state[0][j] == -1:
-                return -10
+            return state[0][j]
 
     # check diagonals
     if state[0][0] == state[1][1] == state[2][2] and state[0][0] != 0:
-        if state[0][0] == 1:
-            return 10
-        elif state[0][0] == -1:
-            return -10
+        return state[0][0]
     if state[0][2] == state[1][1] == state[2][0] and state[0][2] != 0:
-        if state[0][2] == 1:
-            return 10
-        elif state[0][2] == -1:
-            return -10
+        return state[0][2]
+
     return 0
 
 def check_tie(state):
@@ -51,44 +40,40 @@ def expand_state(state):
     for i in range(3):
         for j in range(3):
             if state[i][j] == 0:
-                child = [i,j]
+                child = [i, j]
                 children.append(child)
-    # print(children)
     return children
 
-
 def minimax(state, depth, isMaxPlayer):
-    global count_terminal
-    if depth == 0 or terminal_node(state)["gameover"]: 
-        count_terminal += 1 
-        return terminal_node(state)["result"], None, count_terminal
+    if depth == 0 or terminal_node(state)["gameover"]:
+        return terminal_node(state)["result"], None
 
     if isMaxPlayer:
         v_max = -math.inf
+        best_move = None
+        for pos in expand_state(state):
+            child = copy.deepcopy(state)
+            child[pos[0]][pos[1]] = 1
+            v, _ = minimax(child, depth - 1, not isMaxPlayer)
+            if v > v_max:
+                v_max = v
+                best_move = pos
+        return v_max, best_move
+
     else:
         v_min = math.inf
-
-    children = expand_state(state)
-    best_move = None
-
-    for pos in children:
-        child = copy.deepcopy(state)
-        child[pos[0]][pos[1]] = 1 if isMaxPlayer else -1
-        # child[pos[1]][pos[0]] = 1 if isMaxPlayer else -1
-        
-        v, _, count_terminal = minimax(child, depth - 1, not isMaxPlayer)
-
-        if isMaxPlayer and v > v_max:
-            v_max = v
-            best_move = pos
-        elif not isMaxPlayer and v < v_min:
-            v_min = v
-            best_move = pos
-
-    return (v_max, best_move, count_terminal) if isMaxPlayer else (v_min, best_move, count_terminal)
+        best_move = None
+        for pos in expand_state(state):
+            child = copy.deepcopy(state)
+            child[pos[0]][pos[1]] = -1
+            v, _ = minimax(child, depth - 1, not isMaxPlayer)
+            if v < v_min:
+                v_min = v
+                best_move = pos
+        return v_min, best_move
 
 def output_state(state):
-    print(f"This is the state:")
+    print("This is the state:")
     for row in state:
         print(row)
 
@@ -103,7 +88,7 @@ def player_ply(depth):
 
     def notify_player(state):
         output_state(state)
-        print("Please input the your play in x-coordinate and y-coordinate.")
+        print("Please input your move in x-coordinate and y-coordinate.")
         print("The range of the input is (0-2), (0-2). For example, (0,0) is the top left corner.")
 
     while True:
@@ -111,37 +96,32 @@ def player_ply(depth):
 
         move_x = get_valid_input("Please input the x-coordinate: ")
         move_y = get_valid_input("Please input the y-coordinate: ")
-        
+
         if state[move_y][move_x] != 0:
             print("Invalid move, cell is occupied. Please try again.")
         else:
             state[move_y][move_x] = 1
-            print(f"Player chooses the move {move_x, move_y}")
+            print(f"Player chooses the move {move_x}, {move_y}")
             break
-    
+
     return depth - 1
 
 def bot_ply(depth):
-    global count_terminal
-    v, move, count_terminal = minimax(state, depth, isMaxPlayer)
+    v, move = minimax(state, depth, isMaxPlayer)
     output_state(state)
-    print(f"The bot computes {count_terminal} ways this game could end.")
-    result = "a tie" if v == 0 else "a win" if v == -10 else "a defeat"
-    print(v)
-    print(f"The bot chooses {move} as the current move, with expected result: {result}")
-    state[move[1]][move[0]] = -1
-    count_terminal = 0
+    result = "a tie" if v == 0 else "a win" if v == 1 else "a defeat"
+    print(f"The bot chooses {move[1]}, {move[0]} as the current move, with expected result: {result}")
+    state[move[0]][move[1]] = -1
 
     return depth - 1
 
-count_terminal = 0
-state = [[0,0,0],[0,0,0],[0,0,0]]
+state = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
 depth = 9
 isMaxPlayer = True
 
 while True:
-    print(check_winner(state))
-    if check_winner(state) == 10:
+    player_result = check_winner(state)
+    if player_result == 1:
         print("Player wins!")
         break
     elif check_tie(state):
@@ -149,8 +129,9 @@ while True:
         break
     else:
         depth = player_ply(depth)
-    print(check_winner(state))
-    if check_winner(state) == -10:
+
+    bot_result = check_winner(state)
+    if bot_result == -1:
         print("Bot wins!")
         break
     elif check_tie(state):
